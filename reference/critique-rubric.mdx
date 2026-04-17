@@ -1,0 +1,144 @@
+---
+title: 'Critique rubric — six lenses for architectural review'
+description: 'The six architectural lenses and three severity levels that critic subagents apply in Critique mode, sourced directly from critique-rubric.md.'
+keywords: ['critique rubric', 'architectural review', 'abstraction fit', 'data model', 'boundary discipline', 'severity levels']
+---
+
+The critique rubric defines the framework that all three critic subagents use when reviewing a codebase subsystem. It lives in `skills/how/references/critique-rubric.md` and is embedded directly into each critic's prompt via the `{CRITIQUE_RUBRIC_CONTENTS}` placeholder, so every critic — regardless of which model is running it — evaluates the architecture against the same set of questions.
+
+The rubric is not a checklist to apply exhaustively. The opening instruction is explicit: "Review through whichever of these lenses are relevant. Not every lens applies to every subsystem." A critic reviewing a data pipeline should focus on Data Model and Boundary Discipline; a critic reviewing a plugin system should focus on Abstraction Fit and Evolution Readiness.
+
+## Severity levels
+
+Every finding a critic produces must carry one of three severity labels:
+
+| Severity | Meaning | Example |
+|----------|---------|---------|
+| `structural` | The architecture has a fundamental problem that will block real work — wrong abstraction boundary, broken data model, coupling that can't be worked around without a rewrite | Two services share a database table with no ownership boundary, so neither can be deployed independently |
+| `concern` | A real issue that makes the system harder to work with or reason about, but not fundamentally broken | Validation logic scattered across three layers instead of concentrated at the entry point |
+| `observation` | Something worth noting — a tradeoff that may not age well, a pattern inconsistent with the rest of the codebase, incidental technical debt | A configuration value that is hardcoded in two places instead of derived from a single source |
+
+After all three critics return their findings, the orchestrating agent acts as a pragmatic lead: it categorizes each finding as **Act on**, **Consider**, **Noted**, or **Dismissed**, and presents the verdict below the explanation. See [Critique mode](/concepts/critique-mode) for how that synthesis works.
+
+## The six lenses
+
+<AccordionGroup>
+  <Accordion title="Abstraction Fit">
+
+**Are the abstractions in this subsystem pulling their weight?**
+
+This lens asks whether the abstractions in the code represent real concepts or are indirection layers added "in case we need it." Over-abstraction is treated as equally problematic as under-abstraction.
+
+Guiding questions from the rubric:
+
+- Does each abstraction represent a real concept, or is it an indirection layer "in case we need it"?
+- Are the abstraction boundaries in the right place — do they separate things that change independently?
+- Is there accidental coupling where two components share implementation details they shouldn't need to know about?
+- Is business logic entangled with framework wiring, or cleanly separated?
+
+**When this lens applies:** Any subsystem where you suspect premature generalization, or conversely, where the same logic appears to be repeated in several places that could be unified. Also relevant when reviewing newly introduced service or class boundaries.
+
+  </Accordion>
+  <Accordion title="Data Model">
+
+**Do the data structures fit the actual usage patterns?**
+
+This lens asks whether data is modeled for how it is actually accessed at runtime, or for how it was conceptually modeled during design. The two diverge as a system evolves, and the impedance mismatch between them shows up as pervasive reshaping code.
+
+Guiding questions from the rubric:
+
+- Are the data models designed for how data is actually accessed, or for how it was conceptually modeled?
+- Are there impedance mismatches — places where code constantly reshapes data because the underlying model doesn't match the access pattern?
+- Are types honest? Do they represent what data actually looks like at runtime, or do they claim more structure than exists?
+
+**When this lens applies:** Storage layers, API response shapes, domain models, and any place where data crosses a serialization boundary. Also relevant when you see frequent `as` casts, optional field proliferation, or transformation functions that exist only to bridge two representations of the same data.
+
+  </Accordion>
+  <Accordion title="Boundary Discipline">
+
+**Are system boundaries clean and well-placed?**
+
+This lens asks whether the system enforces its invariants at the edges — where data enters and leaves — or scatters that enforcement through internal code. Boundaries that leak validation logic, swallow errors, or pass data as untyped blobs create systems that are difficult to test and reason about in isolation.
+
+Guiding questions from the rubric:
+
+- Is validation concentrated at entry points, or scattered through internal code?
+- Are errors handled at boundaries and propagated cleanly, or caught and re-thrown at every layer?
+- Does data cross boundaries in well-typed shapes, or as bags of optional fields?
+- Could this subsystem be tested in isolation, or does it require the entire system to be running?
+
+**When this lens applies:** Any subsystem that integrates with an external service, accepts user input, or exposes an API. Also relevant when reviewing error handling patterns, or when a subsystem seems impossible to unit test without standing up significant infrastructure.
+
+  </Accordion>
+  <Accordion title="Evolution Readiness">
+
+**How well will this architecture handle likely changes?**
+
+This lens asks whether the design accommodates the changes that are plausible given the trajectory of the codebase. It explicitly avoids penalizing code for not handling hypothetical changes — only changes that are likely matter.
+
+Guiding questions from the rubric:
+
+- If the most probable next requirement landed tomorrow, how much would need to change? Is the answer "one file" or "everything"?
+- Are there hardcoded assumptions that would need to be relaxed?
+- Is the design bolted-on (integrated as an afterthought) or integrated (looks like it was always part of the plan)?
+- Are there legacy paths being preserved for compatibility that no one depends on?
+
+**When this lens applies:** Features that are actively evolving, integration points where requirements are known to be unstable, and any code that looks like it was retrofit into an existing design rather than designed from the start.
+
+  </Accordion>
+  <Accordion title="Complexity vs. Value">
+
+**Is the complexity budget spent wisely?**
+
+This lens asks whether the complexity in the subsystem is concentrated in the parts that genuinely require it — core logic, subtle invariants, performance-critical paths — or in accidental places like boilerplate, unnecessary indirection, and configuration.
+
+Guiding questions from the rubric:
+
+- Where is the complexity concentrated? Is it in the parts that need to be complex (core logic, tricky invariants) or in accidental places (boilerplate, unnecessary indirection, configuration)?
+- Are there simpler ways to achieve the same behavior?
+- Does every component earn its existence, or are there vestigial pieces from an earlier design?
+
+**When this lens applies:** Subsystems where the implementation feels disproportionately large relative to what it actually does, or conversely, where a simple-looking interface hides significant hidden complexity that isn't called out anywhere.
+
+  </Accordion>
+  <Accordion title="Consistency">
+
+**Does this subsystem follow the patterns established elsewhere in the codebase?**
+
+This lens asks whether the subsystem solves problems the same way the rest of the codebase does. Inconsistency is not automatically a problem — there may be good reasons a subsystem diverges — but unexplained inconsistency is a maintenance burden because it forces every new contributor to discover the local conventions independently.
+
+Guiding questions from the rubric:
+
+- Are similar problems solved the same way here as in other parts of the codebase, or does this area invent its own patterns?
+- If the patterns differ, is there a good reason, or did it just evolve independently?
+- Inconsistency isn't automatically bad — but unexplained inconsistency is a maintenance burden.
+
+**When this lens applies:** Any subsystem that was written by a different team, during a different era of the codebase, or as a one-off experiment. Also relevant when onboarding a new contributor who will need to work in multiple areas of the codebase and shouldn't have to learn different conventions for each one.
+
+  </Accordion>
+</AccordionGroup>
+
+## Customizing the rubric
+
+Because the rubric is a plain Markdown file, you can add, remove, or reword any section. Changes take effect immediately — the critics receive the full file contents at runtime via `{CRITIQUE_RUBRIC_CONTENTS}`.
+
+Common customizations:
+
+- **Add a lens** — Append a new `##` section with a name, a one-sentence framing question, and a bulleted list of guiding questions. Use the existing lenses as a template.
+- **Add domain-specific questions** — Extend an existing lens with questions specific to your stack (e.g., "Are database queries co-located with the feature that owns them, or spread across repositories?").
+- **Remove a lens** — If a lens consistently produces noise for your codebase (e.g., "Consistency" in a codebase that intentionally allows per-service conventions), remove it entirely rather than dismissing its findings every time.
+
+<Note>
+  The rubric is shared across all three critic models. A change you make applies to every critic in every Critique mode run, not just one.
+</Note>
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Critique mode" icon="magnifying-glass" href="/concepts/critique-mode">
+    How Critique mode uses the rubric — spawning critics, synthesizing findings, and presenting the verdict.
+  </Card>
+  <Card title="Prompt templates" icon="file-lines" href="/reference/prompt-templates">
+    How the critic prompt template embeds the rubric via the {`{CRITIQUE_RUBRIC_CONTENTS}`} placeholder.
+  </Card>
+</CardGroup>

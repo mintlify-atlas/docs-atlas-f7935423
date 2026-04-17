@@ -1,0 +1,66 @@
+---
+title: 'How It Works: Full End-to-End Pipeline Walkthrough'
+description: 'See how How parses your question, chooses a path, fans out parallel explorer agents, synthesizes findings, and delivers a structured explanation.'
+---
+
+How takes a natural-language question about your codebase and returns a structured architectural explanation — the kind a senior engineer would give during onboarding. To do that, it routes your question through a pipeline: assess complexity, explore the code (with one agent or many), synthesize findings, and optionally critique the architecture with independent reviewers. Every step is driven by subagents that read your actual code rather than guess from file names.
+
+## The two modes
+
+How operates in two modes, selected automatically based on how you phrase your question.
+
+**Explain mode** is the default. You ask how something works, and How explores the codebase and writes a structured explanation. For simple, narrow questions it uses a single agent. For broad subsystems that span multiple files or services, it fans out parallel explorer agents and hands their findings to a synthesis agent.
+
+**Critique mode** runs the full explain flow first, then spawns three independent architectural critics across different models. The critics review the actual code using the explanation as a map, then a lead-judgment step categorizes their findings. The explanation and critique are always presented separately so you can read just the architectural overview if that is all you need.
+
+## Question parsing and complexity assessment
+
+When your question arrives, the router agent parses what you are asking about: a subsystem, a feature flow, an architectural overview, or a runtime trace. It then assesses complexity along a single axis — does this question span multiple files and services, or is it narrow enough to answer in a single pass?
+
+- **Simple questions** (a single module, a narrow function, a small utility) skip the explorer fan-out entirely. One agent explores and explains in one pass.
+- **Complex questions** (a subsystem crossing multiple files or services, a cross-cutting feature, a full architectural overview) trigger the parallel explorer path.
+
+When in doubt, How leans toward the simple path and escalates if the explainer hits a wall.
+
+## The simple path
+
+For simple questions, a single subagent runs on `claude-opus-4.6` with read-only access. It does its own exploration — Glob for directories, Grep for key symbols, Read for implementation details — and writes the explanation directly, following the same output format as the complex path.
+
+## The complex path
+
+For complex questions, the router decomposes the question into two to four parallel exploration angles — distinct slices of the subsystem chosen so that explorers cover different ground. For example, "how does message virtualization work?" might split into a data model slice, a rendering pipeline slice, and a scroll infrastructure slice.
+
+All explorer subagents are launched in a single message so they run in parallel. Each runs on `gpt-5.4` with read-only access and receives the same base instructions plus its specific angle. Once all explorers return their structured findings, a synthesis agent on `claude-opus-4.6` reconciles the overlapping and sometimes contradictory results into one coherent explanation.
+
+## Output format
+
+Every explanation follows a five-section structure, adapted to the question. Sections are skipped if they are not relevant.
+
+| Section | Purpose |
+|---|---|
+| **Overview** | 1–2 paragraphs: what this thing is, what it does, why it exists. Enough to decide whether to keep reading. |
+| **Key Concepts** | The important types, services, and abstractions — brief definitions of the ones needed to follow the rest. |
+| **How It Works** | The core of the explanation: what triggers the flow, what happens step by step, where data goes, what the decision points are. Prose, not pseudocode, with file and function references. |
+| **Where Things Live** | A concise file/directory map — just the files someone would need to find to start working in this area. |
+| **Gotchas** | Non-obvious behavior, historical context, and sharp edges. Omitted when there is nothing worth calling out. |
+
+## The critique pass
+
+When your question asks about architectural issues, problems, or improvements, How runs the full explain flow and then spawns three critics in parallel — one each on `claude-opus-4.6`, `composer-2`, and `gpt-5.4`. Each critic reads the actual code using the explanation as a map and reports structured findings with severity, evidence, and impact. A lead-judgment step then categorizes those findings into **Act on**, **Consider**, **Noted**, and **Dismissed** before presenting them below the explanation.
+
+## Explore the details
+
+<CardGroup cols={2}>
+  <Card title="Explain mode" icon="magnifying-glass" href="/concepts/explain-mode">
+    Full walkthrough of the simple and complex explain paths, the output format, and how the synthesis agent reconciles explorer findings.
+  </Card>
+  <Card title="Critique mode" icon="triangle-exclamation" href="/concepts/critique-mode">
+    How critics are spawned after the explain pass, what the finding structure looks like, and how the lead-judgment step filters the results.
+  </Card>
+  <Card title="Agent architecture" icon="diagram-project" href="/concepts/agent-architecture">
+    The roles of each subagent type, model assignments, the readonly flag, and a diagram of the full agent flow.
+  </Card>
+  <Card title="Skill file reference" icon="file-code" href="/reference/skill-file">
+    The complete SKILL.md annotated with every routing decision and subagent configuration.
+  </Card>
+</CardGroup>

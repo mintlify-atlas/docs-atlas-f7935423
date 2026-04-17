@@ -1,97 +1,53 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "How: architectural explanation skill for AI agents"
+description: "How is a Cursor skill that answers 'how does X work?' questions by spawning parallel explorer agents and synthesizing structured architectural explanations."
 ---
 
-## Setting up
+How is a skill for AI coding agents that turns any "how does X work?" question into a clear, senior-engineer-quality architectural explanation. It automatically decides whether a question needs a single-agent pass or a fan-out to parallel explorer agents — then synthesizes everything into one coherent picture. For deeper analysis, an optional critique mode spawns independent critics across multiple AI models to surface architectural problems.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Get started" icon="rocket" href="/installation">
+    Install the How skill in Cursor or your agent runner in minutes
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Run your first architectural explanation with example prompts
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="How it works" icon="sitemap" href="/concepts/overview">
+    Understand the explain and critique modes and agent architecture
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Reference" icon="book" href="/reference/skill-file">
+    Explore the SKILL.md routing logic and prompt templates
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What How does
 
-Everything you need to create world-class documentation.
+<Steps>
+  <Step title="You ask a question">
+    Type `/how` followed by any architecture question — a subsystem, a feature flow, an architectural overview, or a runtime trace.
+  </Step>
+  <Step title="How assesses complexity">
+    Simple questions (a single module, a narrow function) run end-to-end in one agent. Complex questions (cross-cutting subsystems, multi-service flows) fan out to 2–4 parallel explorer agents.
+  </Step>
+  <Step title="Explorers gather findings">
+    Each explorer agent traces a different slice of the codebase — data models, rendering pipelines, service boundaries — reading actual code, not guessing from file names.
+  </Step>
+  <Step title="You receive a structured explanation">
+    A synthesis agent reconciles the explorers' findings into one explanation: Overview, Key Concepts, How It Works, Where Things Live, and Gotchas. For critique mode, independent critics then review the architecture across multiple models.
+  </Step>
+</Steps>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Two modes
 
-## Need inspiration?
+<CardGroup cols={2}>
+  <Card title="Explain mode" icon="magnifying-glass" href="/concepts/explain-mode">
+    Produce a clear architectural explanation at the level of a senior engineer onboarding onto a new subsystem
+  </Card>
+  <Card title="Critique mode" icon="triangle-exclamation" href="/concepts/critique-mode">
+    Explain first, then spawn multiple independent critics to surface structural problems, concerns, and observations
+  </Card>
+</CardGroup>
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<Tip>
+  How works in Cursor via the `.cursor-plugin/` integration and in other agent runners via the `.agents/` directory. See [Installation](/installation) for setup details.
+</Tip>

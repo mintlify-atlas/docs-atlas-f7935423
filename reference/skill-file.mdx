@@ -1,0 +1,155 @@
+---
+title: 'SKILL.md reference — how the skill file is structured'
+description: 'Complete reference for the SKILL.md file that drives the how skill: frontmatter fields, mode routing, complexity assessment, and customization.'
+keywords: ['skill file', 'SKILL.md', 'routing', 'explain mode', 'critique mode', 'complexity']
+---
+
+The `SKILL.md` file is the entry point for the `how` skill. It contains the top-level routing logic that determines which agents to spawn, how many exploration angles to decompose a question into, and when to trigger a critique pass. Every behavioral decision — simple vs. complex routing, explain vs. critique mode — originates here.
+
+## File locations
+
+The `SKILL.md` file lives in two locations depending on your runner:
+
+- `skills/how/SKILL.md` — used by Cursor via the `.cursor-plugin/` integration
+- `.agents/skills/how/SKILL.md` — used by generic agent runners that follow the `.agents/` convention
+
+Both paths contain identical content. The duplication is intentional: it lets you install `how` for Cursor without requiring a specific agent runner, and vice versa.
+
+## Frontmatter
+
+Every skill file opens with a YAML frontmatter block that identifies the skill to the runner:
+
+```markdown
+---
+name: how
+description: Explain how something works in this codebase by exploring code and producing a clear architectural explanation. Optionally critique the architecture for issues.
+---
+```
+
+<ParamField path="name" type="string">
+  The identifier the runner uses to route invocations to this skill. Cursor matches this against the `/how` command. If you fork and rename the skill, change this field and update `.cursor-plugin/plugin.json` to match.
+</ParamField>
+
+<ParamField path="description" type="string">
+  A human-readable summary shown in the Cursor skill picker and in `plugin.json`. Keep it under 200 characters. It should describe what the skill does and hint at its two modes (explain and critique).
+</ParamField>
+
+## Two top-level modes
+
+The skill exposes two modes, selected automatically based on what you ask:
+
+| Mode | Trigger | What happens |
+|------|---------|--------------|
+| **Explain** | Any "how does X work?" question | Explore the codebase, synthesize findings, present a structured explanation |
+| **Critique** | Asks for architectural issues, problems, or improvements | Run the full explain flow first, then spawn parallel critic agents |
+
+The mode switch is not a flag you pass — the orchestrating agent reads your question and decides. A question like "How does the auth service work?" triggers Explain mode. A question like "How does the auth service work? Also critique the design." triggers Critique mode.
+
+## Routing logic: complexity assessment
+
+Before spawning any agents, the skill assesses whether the question is **simple** or **complex**:
+
+**Simple** — a single module, a small utility, or a narrow question like "how does function X work?":
+
+- Skip explorer agents entirely
+- Spawn a single `generalPurpose` subagent using `claude-opus-4.6`
+- That agent explores and explains in one pass
+- Go directly to the present step
+
+**Complex** — a subsystem spanning multiple files or services, a cross-cutting feature, or a full architectural overview:
+
+- Decompose the question into 2–4 parallel exploration angles
+- Spawn one `generalPurpose` explorer per angle using `gpt-5.4`, all in a single message
+- After all explorers return, spawn a synthesis agent using `claude-opus-4.6`
+- Go to the present step
+
+<Note>
+  When in doubt, the skill leans toward the simple path. If the explainer agent hits a wall mid-exploration, it can always spawn explorers retroactively.
+</Note>
+
+## Complete SKILL.md structure
+
+Below is the full content of `skills/how/SKILL.md` for reference:
+
+```markdown
+---
+name: how
+description: Explain how something works in this codebase by exploring code and producing a clear architectural explanation. Optionally critique the architecture for issues.
+---
+
+# How
+
+Explore the codebase to answer "how does X work?" questions. Produce clear architectural explanations at the level of a senior engineer onboarding onto a subsystem — enough to build a working mental model, not so much that it reads like annotated source code.
+
+Two modes:
+
+1. **Explain** (default) — explore the codebase and produce a clear explanation
+2. **Critique** — explain first, then spawn multiple models to independently identify architectural issues
+
+## Explain Mode
+
+### Step 1 — Understand the Question and Assess Complexity
+
+Parse what the user is asking about. They might say:
+
+- "How does message virtualization work?" — a subsystem
+- "How do we handle billing for on-demand usage?" — a feature flow
+- "How is the auth service structured?" — an architectural overview
+- "Walk me through what happens when a user sends a message" — a runtime trace
+
+Identify the scope. If it's ambiguous, make your best guess and state your interpretation before exploring. Don't ask — explore and let the user redirect if you're off.
+
+**Assess complexity to decide the approach:**
+
+- **Simple** (a single module, a small utility, a narrow question like "how does function X work"): Skip explorer agents entirely. The explainer agent explores and explains in a single pass. Go directly to Step 2b.
+- **Complex** (a subsystem spanning multiple files/services, a cross-cutting feature, a full architectural overview): Spawn parallel explorer agents first, then hand off to the explainer. Go to Step 2a.
+
+When in doubt, lean toward the simple path — you can always spawn explorers if the explainer hits a wall.
+
+### Step 2a — Explore (complex questions only)
+
+Decompose the question into 2-4 parallel exploration angles...
+
+### Step 2b — Direct Explain (simple questions)
+
+Spawn a single Task subagent that explores and explains in one pass...
+
+### Step 3 — Synthesize (complex questions only)
+
+Once all explorers have returned, spawn a single Task subagent to synthesize...
+
+### Step 4 — Present
+
+Take the explainer's output and present it to the user...
+
+## Critique Mode
+
+Triggered when the user asks for architectural issues, problems, or improvements...
+```
+
+## How to customize SKILL.md
+
+If you fork `how` and want to change its behavior, `SKILL.md` is where you make most edits. Common customizations:
+
+**Change the explorer model** — Find the Step 2a section and replace `gpt-5.4` with your preferred model. The field is `model` on each spawned subagent.
+
+**Change the explainer or critic models** — Replace `claude-opus-4.6` in Step 2b, Step 3, or the critic table in Critique Mode.
+
+**Adjust the complexity threshold** — Edit the prose description of "simple" vs. "complex" to shift where the routing line falls. The orchestrating agent interprets this description, so plain-language edits take effect immediately.
+
+**Add a third mode** — Append a new `##` section after Critique Mode with a trigger description and step-by-step instructions. The runner will pick it up automatically.
+
+<Tip>
+  After editing `SKILL.md`, update the prompt templates in `references/` if your changes affect what information flows to subagents. The skill file and prompt templates are designed to be edited together.
+</Tip>
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Prompt templates" icon="file-lines" href="/reference/prompt-templates">
+    The four prompt templates that SKILL.md hands to each subagent type.
+  </Card>
+  <Card title="Configuration" icon="gear" href="/reference/configuration">
+    The plugin.json fields and directory structure for Cursor integration.
+  </Card>
+</CardGroup>

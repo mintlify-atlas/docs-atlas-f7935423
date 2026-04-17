@@ -1,0 +1,142 @@
+---
+title: 'Explain Mode: From Question to Architectural Answer'
+description: 'Learn how How explores your codebase, fans out parallel explorer agents for complex questions, and synthesizes findings into a structured explanation.'
+---
+
+Explain mode is the default behavior of How. You ask how something works, and How explores your actual codebase and produces a structured explanation at the level of a senior engineer onboarding onto a new area — enough to build a working mental model, not so much that it reads like annotated source code. The path it takes depends entirely on how complex your question is.
+
+## Step 1: Understand the question and assess complexity
+
+The router agent parses your question and identifies its scope. You might ask about a subsystem ("how does message virtualization work?"), a feature flow ("how do we handle billing for on-demand usage?"), an architectural overview ("how is the auth service structured?"), or a runtime trace ("walk me through what happens when a user sends a message").
+
+If your question is ambiguous, How makes its best guess, states its interpretation, and starts exploring. It does not ask clarifying questions — it explores and lets you redirect if it is off track.
+
+After parsing the scope, the router assesses complexity:
+
+- **Simple** — a single module, a small utility, a narrow question like "how does function X work." Skip the explorer fan-out and go directly to the direct-explain path.
+- **Complex** — a subsystem spanning multiple files or services, a cross-cutting feature, a full architectural overview. Decompose into parallel exploration angles and go to the parallel-explore path.
+
+When in doubt, How leans toward simple and escalates if the explainer hits a wall.
+
+<Steps>
+  <Step title="Understand the question and assess complexity">
+    Parse the scope of the question and decide: simple (one agent, direct explain) or complex (parallel explorers + synthesis).
+  </Step>
+  <Step title="Explore the codebase">
+    Run either the direct-explain path (simple) or the parallel-explore path (complex). Both paths use read-only subagents that Glob, Grep, and Read actual code.
+  </Step>
+  <Step title="Synthesize findings (complex path only)">
+    A synthesis agent reconciles the explorers' structured findings — merging overlaps, resolving contradictions, filling gaps — into one coherent explanation.
+  </Step>
+  <Step title="Present the explanation">
+    The router takes the explainer's output and presents it to you. Light editing for context is fine; the explainer's writing is the product.
+  </Step>
+</Steps>
+
+## The direct-explain path (simple questions)
+
+For simple questions, How spawns a single subagent that explores and explains in one pass. This agent:
+
+- Runs on `claude-opus-4.6`
+- Has `readonly: true` access to the codebase
+- Does its own exploration with Glob, Grep, and Read
+- Writes the explanation directly, following the same output format
+
+No fan-out, no synthesis step. The agent goes from question to explanation in a single pass.
+
+## The parallel-explore path (complex questions)
+
+For complex questions, How decomposes the question into two to four distinct exploration angles and spawns one subagent per angle — all in a single message so they run in parallel.
+
+### Decomposing the question
+
+The right decomposition depends on the question. The goal is to slice the subsystem so each explorer covers different ground and the results tile into a complete picture without leaving gaps. For example, a question about "how does message virtualization work?" might decompose into:
+
+- **Explorer 1** — the data model and state management
+- **Explorer 2** — the rendering pipeline and DOM interaction
+- **Explorer 3** — the scroll and measurement infrastructure
+
+For narrow complex questions, two explorers is fine. For broad subsystems, up to four.
+
+### How each explorer operates
+
+Every explorer subagent runs on `gpt-5.4` with `readonly: true` access. Each receives the same base explorer prompt from `references/explorer-prompt.md` plus its specific angle telling it which slice to focus on.
+
+Each explorer follows this pattern:
+
+1. Find the entry point — what triggers this behavior? A user action, an API call, a scheduled job?
+2. Trace the flow — follow the call chain, read each function, understand what data flows through and transforms.
+3. Map the key abstractions — what types, interfaces, services, or classes are central?
+4. Find the boundaries — where does this slice interface with other parts of the system?
+5. Note the non-obvious — anything surprising, historically motivated, or easy to misunderstand.
+
+Explorers return structured findings: components found, the traced flow, files read, boundary connections, and open questions. Overlap between explorers is fine — the synthesis agent reconciles it.
+
+<Note>
+  Explorers are focused on thoroughness and accuracy, not prose. A separate synthesis agent turns their structured findings into the human-facing explanation.
+</Note>
+
+## Step 3: Synthesis (complex path only)
+
+Once all explorers have returned, How spawns a single synthesis subagent on `claude-opus-4.6` with `readonly: true` access. The synthesizer receives all explorers' structured findings and writes the human-facing explanation.
+
+The synthesizer's job is to reconcile: it merges overlapping descriptions, resolves contradictions (checking the actual code when needed), and weaves the separate slices into a unified picture. It has read-only codebase access so it can fill gaps, but the explorers already did the heavy lifting.
+
+## Output format
+
+Every explanation follows this structure, adapted to what makes sense for the question. Sections are omitted when they are not relevant.
+
+### Overview
+
+One to two paragraphs: what this thing is, what it does, why it exists. Someone should be able to read just this section and decide whether they need to keep reading.
+
+### Key Concepts
+
+The important types, services, and abstractions needed to follow the rest of the explanation. Brief definitions — not exhaustive, just the ones a reader needs to hold in mind.
+
+### How It Works
+
+The core of the explanation. What triggers the flow, what happens step by step, where data goes, what the decision points are. Written in prose, not pseudocode. References specific files and functions so you can find them, but does not dump large code blocks unless a snippet is genuinely essential to understanding a point.
+
+When the flow involves multiple components or data transforming through stages, a diagram makes it visual. The synthesizer uses Mermaid for structured flows or ASCII art for simpler relationships.
+
+### Where Things Live
+
+A concise file and directory map — just the files someone would need to find to start working in this area.
+
+### Gotchas
+
+Non-obvious things, surprising behavior, historical context that explains why something looks odd, and known sharp edges. This section is skipped when there is nothing worth calling out.
+
+<Tip>
+  The output format adapts to the question. A narrow question about a single function might need only an Overview and a How It Works section. A broad subsystem overview might use all five.
+</Tip>
+
+## Comparing the two paths
+
+<Tabs>
+  <Tab title="Simple (direct explain)">
+    **When**: Single module, small utility, narrow question.
+
+    **Subagents**: 1 — explores and explains in one pass.
+
+    **Model**: `claude-opus-4.6`
+
+    **Access**: `readonly: true`
+
+    **Steps**: Question → single agent → explanation.
+  </Tab>
+  <Tab title="Complex (parallel explore + synthesis)">
+    **When**: Subsystem spanning multiple files or services, cross-cutting feature, full architectural overview.
+
+    **Subagents**: 2–4 explorers + 1 synthesizer.
+
+    **Explorer model**: `gpt-5.4`
+
+    **Synthesizer model**: `claude-opus-4.6`
+
+    **Access**: `readonly: true` for all agents.
+
+    **Steps**: Question → decompose → parallel explorers → synthesis → explanation.
+  </Tab>
+</Tabs>

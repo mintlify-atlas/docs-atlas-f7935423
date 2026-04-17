@@ -1,0 +1,180 @@
+---
+title: 'Prompt templates — explorer, explainer, and critic'
+description: 'Reference for all four prompt templates in the references/ directory: placeholders, output formats, and which agent each template is sent to.'
+keywords: ['prompt templates', 'explorer prompt', 'explainer prompt', 'critic prompt', 'references', 'placeholders']
+---
+
+The `references/` directory holds the four files that `SKILL.md` hands to each subagent type. Each template is a Markdown file with placeholder tokens in `{UPPERCASE_BRACES}` that the orchestrating agent fills in before dispatching a subagent. You can edit these files directly to change how each agent communicates, what it looks for, or how it structures its output.
+
+<Info>
+  The templates are not injected automatically — `SKILL.md` explicitly instructs the orchestrating agent to read a specific file and use it as the basis for each subagent's prompt. Editing a template takes effect immediately without any additional configuration.
+</Info>
+
+## Templates overview
+
+| File | Agent that receives it | When it is used |
+|------|----------------------|-----------------|
+| `explorer-prompt.md` | Explorer subagents (parallel) | Complex questions in Explain mode — one per exploration angle |
+| `explainer-prompt.md` | Explainer/synthesis subagent | Complex questions after all explorers return; also guides direct-explain for simple questions |
+| `critic-prompt.md` | Critic subagents (parallel, three models) | Critique mode, after the explanation is complete |
+| `critique-rubric.md` | Injected into each critic's prompt | Critique mode — embedded via the `{CRITIQUE_RUBRIC_CONTENTS}` placeholder in `critic-prompt.md` |
+
+<Tabs>
+  <Tab title="explorer-prompt.md">
+
+The explorer prompt is sent to each parallel explorer subagent during the fan-out phase of complex questions. Each explorer receives the same base template, but with a different `{EXPLORATION_ANGLE}` value so the agents divide the subsystem without duplicating work.
+
+**Placeholders:**
+
+| Placeholder | What the orchestrator fills in |
+|-------------|-------------------------------|
+| `{QUESTION}` | The original question from the user, verbatim |
+| `{EXPLORATION_ANGLE}` | A short description of the specific slice this explorer should focus on (e.g., "the data model and state management") |
+
+**Output format the template requests:**
+
+```markdown
+### Components Found
+List the key types, services, classes, and abstractions. For each: name, file path,
+and a one-sentence description of what it does.
+
+### Flow
+Describe the execution flow step by step. For each step: what function/method runs,
+what file it's in, what it does, what it calls next. Include the data that flows
+between steps.
+
+### Files Read
+List every file you read during exploration, so the explainer can reference them.
+
+### Boundaries
+Where does this subsystem connect to other parts of the codebase? What are the
+inputs and outputs?
+
+### Non-Obvious Things
+Anything surprising, historically motivated, or easy to get wrong. Things that look
+like they should work one way but actually work another.
+
+### Open Questions
+Anything you couldn't fully trace or understand. Be honest about gaps.
+```
+
+**Key instructions from the template:**
+
+The explorer is told to prioritize thoroughness over prose quality ("A separate agent will write the human-facing explanation from your findings, so focus on thoroughness and accuracy over prose"). It follows a five-step pattern: find the entry point, trace the flow, map key abstractions, find the boundaries, and look for non-obvious details. It must read the actual code — not guess from file names.
+
+  </Tab>
+  <Tab title="explainer-prompt.md">
+
+The explainer prompt is sent to the synthesis subagent after all explorers have returned (complex path), or used as the style and structure guide for the single direct-explain agent (simple path). In the complex path, the explainer receives the full explorer output so it can reconcile overlapping findings and resolve contradictions.
+
+**Placeholders:**
+
+| Placeholder | What the orchestrator fills in |
+|-------------|-------------------------------|
+| `{QUESTION}` | The original question from the user, verbatim |
+| `{EXPLORER_FINDINGS_ALL}` | The concatenated output from all explorer subagents |
+
+**Output format the template requests:**
+
+```markdown
+### Overview
+1-2 paragraphs. What is this thing, what does it do, why does it exist. Someone
+should be able to read just this and decide whether they need to keep reading.
+
+### Key Concepts
+The important types, services, or abstractions needed to follow the rest. Brief
+definitions, not exhaustive.
+
+### How It Works
+The core of the explanation. Walk through the flow: what triggers it, what happens
+step by step, where data goes, what the decision points are. This should be the
+longest section.
+
+### Where Things Live
+A brief file/directory map. Just the ones someone would need to find to start
+working here.
+
+### Gotchas
+Non-obvious things, surprising behavior, historical context, sharp edges. Skip
+this section if there's nothing worth calling out.
+```
+
+**Communication style the template enforces:**
+
+The template specifies concrete language: "Say 'the ComposerService calls StreamHandler.begin()' not 'the service delegates to the handler'." It directs the agent to use prose, not pseudocode, and to include Mermaid diagrams only when a flow is complex enough that prose alone wouldn't convey it clearly. The agent is explicitly told to acknowledge open questions from the explorer findings honestly rather than papering over them.
+
+  </Tab>
+  <Tab title="critic-prompt.md">
+
+The critic prompt is sent to all three critic subagents simultaneously during Critique mode. Each critic receives the completed explanation, the relevant file paths, and the full critique rubric. Because different models bring different instincts to code review, running three critics in parallel surfaces a broader range of issues than a single pass.
+
+**Placeholders:**
+
+| Placeholder | What the orchestrator fills in |
+|-------------|-------------------------------|
+| `{EXPLANATION}` | The full architectural explanation produced in Step 1 of Critique mode |
+| `{FILE_PATHS}` | The list of relevant files the explorer and explainer agents identified |
+| `{CRITIQUE_RUBRIC_CONTENTS}` | The complete contents of `critique-rubric.md` |
+
+**Severity levels:**
+
+| Level | Meaning |
+|-------|---------|
+| `structural` | A fundamental architectural problem — wrong abstraction boundary, broken data model, coupling that will block future work |
+| `concern` | A real issue that makes the system harder to work with or reason about, but not fundamentally broken |
+| `observation` | Something worth noting — a tradeoff that may not age well, a pattern inconsistent with the rest of the codebase, technical debt |
+
+**Output format the template requests:**
+
+```markdown
+## Findings
+
+### 1. [Severity] Short title
+**Components**: Which parts of the system are involved
+**Finding**: What's wrong architecturally
+**Evidence**: Concrete code references
+**Impact**: What this costs in practice
+
+### 2. [Severity] Short title
+...
+```
+
+**Key instructions from the template:**
+
+The critic is told to read the explanation as a map for orientation, then form its own opinion from the actual code — "the explanation might miss things or frame them charitably." It must avoid line-level code review, generic suggestions to add abstraction without demonstrating the problem, and flagging intentional tradeoffs as issues. An empty critique ("the architecture is sound") is explicitly a valid outcome.
+
+  </Tab>
+  <Tab title="critique-rubric.md">
+
+The critique rubric is not sent as a standalone agent prompt — it is embedded into the critic prompt via the `{CRITIQUE_RUBRIC_CONTENTS}` placeholder. Every critic subagent receives the full rubric text as part of its instructions, giving all three critics the same evaluation framework regardless of which model is running.
+
+The rubric defines six architectural lenses and three severity levels. It is designed to be used selectively: the opening line states "Review through whichever of these lenses are relevant. Not every lens applies to every subsystem."
+
+See the [Critique rubric reference](/reference/critique-rubric) page for full documentation of each lens and the guiding questions within each one.
+
+  </Tab>
+</Tabs>
+
+## Editing templates
+
+Because the templates are plain Markdown files in `references/`, you can edit them with any text editor. Common reasons to customize:
+
+- **Change the output format** — Rename or reorder sections in the `## Output Format` block. The subagent follows those headings literally.
+- **Add domain context** — Add a "Codebase conventions" section to `explorer-prompt.md` to tell explorers about patterns specific to your codebase (e.g., "this project uses event sourcing — the event log is the source of truth").
+- **Tighten the critic scope** — Edit `critic-prompt.md`'s `## What to Avoid` section to exclude categories of feedback that aren't useful for your team.
+- **Add a rubric lens** — Append a new `##` section to `critique-rubric.md`. The critic agents will incorporate it automatically because they receive the full rubric contents.
+
+<Tip>
+  Keep placeholder tokens like `{QUESTION}` and `{EXPLORER_FINDINGS_ALL}` intact when editing. The orchestrating agent searches for these tokens by name to know where to inject content.
+</Tip>
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Critique rubric" icon="list-check" href="/reference/critique-rubric">
+    Full documentation of the six architectural lenses and severity levels.
+  </Card>
+  <Card title="Skill file" icon="file-code" href="/reference/skill-file">
+    How SKILL.md routes questions and decides which templates to use.
+  </Card>
+</CardGroup>

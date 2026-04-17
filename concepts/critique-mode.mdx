@@ -1,0 +1,105 @@
+---
+title: 'Critique Mode: Architectural Review After Explanation'
+description: 'Learn how How spawns three independent critics across different models, structures their findings, and filters them through a pragmatic lead-judgment step.'
+---
+
+Critique mode activates when your question asks about architectural issues, problems, or improvements — not just how something works. Because you cannot critique what you do not understand, How always runs the full explain flow first, then layers a parallel critic pass on top. The explanation and critique are presented separately so readers who only want to understand the system do not have to wade through architectural findings.
+
+## When critique mode triggers
+
+How picks critique mode automatically when your question signals evaluation rather than understanding:
+
+- "How is the auth service structured? Also critique the design."
+- "What are the architectural problems with the billing flow?"
+- "Are there any issues with how message virtualization is implemented?"
+
+Questions that ask only for understanding ("how does X work?") run explain mode and stop there.
+
+<Steps>
+  <Step title="Run the full explain flow">
+    How runs the complete explain pipeline — complexity assessment, exploration (simple or parallel), and synthesis — exactly as in explain mode. You need a solid understanding of the architecture before you can evaluate it.
+  </Step>
+  <Step title="Spawn parallel critics">
+    After the explanation is complete, How launches three independent architectural critics in a single message so they run in parallel. Each critic gets the explanation, the relevant file paths, and the critique rubric.
+  </Step>
+  <Step title="Lead judgment">
+    How acts as a pragmatic lead, not an aggregator. It reads all three critics' findings and categorizes each one into Act on, Consider, Noted, or Dismissed.
+  </Step>
+  <Step title="Present explanation then critique">
+    The explanation from Step 1 appears first and stands on its own. The critique verdict appears below it as a separate section.
+  </Step>
+</Steps>
+
+## The three critics
+
+How spawns one critic per model, all in a single message. Using different models is deliberate — each model has different priors about what good architecture looks like, so independent reviewers on different models surface a wider range of issues than three instances of the same model would.
+
+| Critic | Model | Role |
+|---|---|---|
+| Critic A | `claude-opus-4.6` | Independent architectural reviewer |
+| Critic B | `composer-2` | Independent architectural reviewer |
+| Critic C | `gpt-5.4` | Independent architectural reviewer |
+
+All three critics run with `subagent_type: generalPurpose` and `readonly: true`. The starting models are suggestions — How can escalate to a higher reasoning tier within the same model family when the architecture warrants deeper analysis.
+
+<Info>
+  Critics receive the explanation from Step 1 as a map, but they form their own opinions from the actual code. The explanation might miss things or frame them charitably — critics are expected to read past it.
+</Info>
+
+## What each critic receives
+
+Each critic subagent is built from the template in `references/critic-prompt.md` and receives three inputs:
+
+1. **The explanation** from the explain pass — gives context and a map of the architecture so critics do not waste time re-exploring.
+2. **The relevant file paths** — so critics can read the actual implementation, not just the explanation of it.
+3. **The critique rubric** from `references/critique-rubric.md` — the lenses through which to evaluate the architecture (abstraction fit, data model, boundary discipline, evolution readiness, complexity vs. value, consistency).
+
+## Finding structure
+
+Each critic reports findings in a consistent structure:
+
+**Severity** — one of three levels:
+
+- `structural` — A fundamental architectural problem: wrong abstraction boundary, broken data model, coupling that will block future work.
+- `concern` — A real issue that makes the system harder to work with or reason about, but not fundamentally broken.
+- `observation` — Something worth noting: a tradeoff that might not age well, a pattern inconsistent with the rest of the codebase, technical debt.
+
+**Finding** — What the architectural issue is. Specific: name the components, the boundary, the coupling.
+
+**Evidence** — Concrete code references that demonstrate the problem. Not assertions — actual dependency chains, type definitions, or call sites.
+
+**Impact** — What the issue costs in practice: harder to test, harder to change, a performance cliff at scale. Concrete, not vague.
+
+<Note>
+  An empty critique is a valid outcome. If the architecture is sound, critics are expected to say so rather than manufacture findings.
+</Note>
+
+## What critics avoid
+
+The critic prompt explicitly rules out:
+
+- Line-level code review — critics look for architectural problems, not implementation details.
+- Suggesting rewrites without demonstrating a problem with the current approach.
+- "This could use more abstraction" without showing what the abstraction would actually solve.
+- Flagging intentional tradeoffs with clear benefits as issues.
+
+## Lead judgment
+
+After all three critics return, How acts as a pragmatic lead engineer — not an aggregator that dumps every finding on you. It reads all findings and categorizes each one:
+
+| Category | Meaning |
+|---|---|
+| **Act on** | Architectural problems worth fixing now. |
+| **Consider** | Real concerns, but the cost/benefit is unclear. Worth evaluating, not necessarily acting on. |
+| **Noted** | Valid observations, low priority. Good to know, not worth scheduling. |
+| **Dismissed** | Wrong, missing context, or a style preference dressed up as an architectural concern. |
+
+Findings that multiple critics independently flag carry more weight. Findings that contradict each other, or that one critic flags as a problem and another treats as an intentional tradeoff, get weighed against the actual code before being categorized.
+
+## Presentation order
+
+The explanation always comes first. Someone reading to understand the architecture can stop there. The critique verdict follows as a clearly separated section beneath the explanation.
+
+<Warning>
+  Critique mode always runs the full explain flow before spawning critics. On large, complex subsystems, this means critique takes significantly longer than a plain explain query.
+</Warning>

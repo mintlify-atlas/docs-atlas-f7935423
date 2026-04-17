@@ -1,0 +1,61 @@
+{
+  "projectType": "general",
+  "projectName": "How",
+  "projectDescription": "A Cursor/agent skill that answers 'how does X work?' questions by spawning parallel explorer agents, synthesizing their findings into structured architectural explanations, and optionally running multi-model critique passes.",
+  "theme": "luma",
+  "primaryColor": "#6366F1",
+  "lightColor": "#EEF2FF",
+  "darkColor": "#312E81",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "How It Works",
+            "pages": [
+              "concepts/overview",
+              "concepts/explain-mode",
+              "concepts/critique-mode",
+              "concepts/agent-architecture"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/skill-file",
+              "reference/prompt-templates",
+              "reference/critique-rubric",
+              "reference/configuration"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Automatic complexity detection — simple questions run end-to-end in a single agent; complex ones fan out to 2–4 parallel explorer agents",
+    "Explain mode — produces structured architectural explanations with Overview, Key Concepts, How It Works, Where Things Live, and Gotchas sections",
+    "Critique mode — after explaining, spawns independent critics across multiple AI models (claude-opus-4.6, composer-2, gpt-5.4) to surface architectural issues",
+    "Lead judgment synthesis — categorizes critic findings into Act On, Consider, Noted, and Dismissed verdicts",
+    "Works with Cursor's plugin system via .cursor-plugin/plugin.json and also supports generic agent runners via .agents/",
+    "Prompt templates in references/ folder for explorer, explainer, critic subagents, and the architectural critique rubric"
+  ],
+  "publicApiSurface": [
+    "/how slash command (Cursor skill invocation)",
+    "SKILL.md — top-level routing logic (explain vs. critique, simple vs. complex)",
+    "references/explorer-prompt.md — prompt template for parallel explorer subagents",
+    "references/explainer-prompt.md — prompt template for synthesis/explainer subagent",
+    "references/critic-prompt.md — prompt template for architectural critic subagents",
+    "references/critique-rubric.md — rubric covering Abstraction Fit, Data Model, Boundary Discipline, Evolution Readiness, Complexity vs. Value, Consistency",
+    ".cursor-plugin/plugin.json — Cursor plugin metadata and registration"
+  ]
+}

@@ -1,0 +1,73 @@
+---
+title: 'How: a Cursor skill for architectural explanations'
+description: 'How is an AI agent skill that answers "how does X work?" questions with senior-engineer-quality architectural explanations, with optional critique.'
+keywords: ['explanation', 'architecture', 'code-review', 'onboarding', 'exploration', 'cursor', 'skill']
+---
+
+How is a skill for AI coding agents — version 0.1.0, authored by Lauren Tan — that turns any "how does X work?" question into a clear, structured architectural explanation. It automatically routes your question through the right path: a single focused agent for narrow questions, or a fan-out to parallel explorer agents for complex subsystems. The result is always a single coherent explanation written at the level of a senior engineer onboarding onto an unfamiliar area.
+
+## Two modes
+
+How picks the right mode based on how you phrase your question. You don't need to configure anything.
+
+<CardGroup cols={2}>
+  <Card title="Explain mode" icon="magnifying-glass" href="/concepts/explain-mode">
+    The default. How explores the codebase and produces a structured explanation: Overview, Key Concepts, How It Works, Where Things Live, and Gotchas.
+  </Card>
+  <Card title="Critique mode" icon="triangle-exclamation" href="/concepts/critique-mode">
+    Triggered when you ask about architectural issues or improvements. How runs the full explain flow first, then spawns independent critics across multiple AI models.
+  </Card>
+</CardGroup>
+
+### Explain mode
+
+When you ask a question like "How does message virtualization work?", How explores the codebase and produces a structured architectural explanation. For simple questions — a single module or a narrow function — it runs end-to-end in one agent. For complex questions that span multiple files or services, it decomposes the question into 2–4 parallel exploration angles and spawns explorer subagents, then a synthesis agent reconciles their findings into a single coherent picture.
+
+### Critique mode
+
+When your question asks about architectural issues, problems, or improvements — for example, "How is the auth service structured? Also critique the design." — How runs the full explain flow first, then spawns three independent architectural critics across different AI models. You receive the explanation first (so it stands on its own), followed by a lead-judgment verdict that categorizes findings as **Act on**, **Consider**, **Noted**, or **Dismissed**.
+
+## Who it's for
+
+How is useful whenever you need to build a working mental model of an unfamiliar codebase area quickly — without reading through annotated source code. It's especially valuable for:
+
+- Engineers onboarding onto a new service or subsystem
+- Reviewers trying to understand architectural decisions before a code review
+- Teams exploring the consequences of a proposed change
+- Anyone who wants a quick architectural audit of a specific area
+
+## How it integrates
+
+<Tabs>
+  <Tab title="Cursor">
+    How ships with a `.cursor-plugin/plugin.json` registration file. Once you clone the repository alongside your project, Cursor picks up the plugin automatically and makes the `/how` slash command available in your agent sessions.
+  </Tab>
+  <Tab title="Generic agent runners">
+    For agent runners that support the `.agents/` directory convention, How's skill file is available there. Point your runner at the skill file and invoke it the same way.
+  </Tab>
+</Tabs>
+
+<Tip>
+  The core logic lives in `skills/how/SKILL.md`. All routing decisions, subagent configurations, and output format rules are defined there — nothing is hidden in compiled code.
+</Tip>
+
+## Plugin metadata
+
+How's plugin registration (`name: how`, `version: 0.1.0`) declares five capability keywords that reflect everything the skill can do: `explanation`, `architecture`, `code-review`, `onboarding`, and `exploration`. These keywords inform agent runners and tool registries about when to surface the skill.
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Clone the repository and register How in Cursor or your agent runner
+  </Card>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Run your first architectural explanation in under five minutes
+  </Card>
+  <Card title="Concepts overview" icon="sitemap" href="/concepts/overview">
+    Understand how How routes questions and orchestrates agents
+  </Card>
+  <Card title="Skill file reference" icon="file-code" href="/reference/skill-file">
+    Read the full routing logic and subagent configuration in SKILL.md
+  </Card>
+</CardGroup>

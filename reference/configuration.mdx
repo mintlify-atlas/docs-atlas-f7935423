@@ -1,0 +1,135 @@
+---
+title: 'Configuration — plugin.json and directory structure'
+description: 'Reference for plugin.json fields, the .cursor-plugin/ and .agents/ directory layouts, and how to fork and customize the how skill for your own codebase.'
+keywords: ['plugin.json', 'configuration', 'cursor plugin', 'agents directory', 'fork', 'customize']
+---
+
+The `how` skill ships with two configuration surfaces: a `plugin.json` file that registers it with Cursor, and a directory layout that generic agent runners can also pick up. Both surfaces point at the same `SKILL.md` and `references/` content — there is no behavioral difference between running the skill through Cursor and running it through a compatible agent runner.
+
+## plugin.json
+
+The `.cursor-plugin/plugin.json` file identifies the skill to Cursor and provides metadata displayed in the skill picker. Here is the complete file:
+
+```json
+{
+  "name": "how",
+  "version": "0.1.0",
+  "description": "Explain how a subsystem works in your codebase by spawning parallel explorer agents, synthesizing their findings into a clear architectural explanation, and optionally running an architectural critique pass across multiple models.",
+  "author": {
+    "name": "Lauren Tan"
+  },
+  "repository": "https://github.com/poteto/how",
+  "keywords": ["explanation", "architecture", "code-review", "onboarding", "exploration"],
+  "license": "MIT"
+}
+```
+
+### Fields
+
+<ParamField path="name" type="string">
+  The skill identifier. Cursor uses this value to route `/how` invocations to this plugin. If you fork the skill and rename it, update this field — and also update the `name` field in `SKILL.md` frontmatter to match.
+</ParamField>
+
+<ParamField path="version" type="string">
+  The current release version in semver format. The current version is `0.1.0`.
+</ParamField>
+
+<ParamField path="description" type="string">
+  A human-readable summary of what the skill does. Cursor may display this in the skill picker. Keep it accurate if you customize the skill's behavior.
+</ParamField>
+
+<ParamField path="author" type="object">
+  An object with a `name` field identifying the skill's author. The author of the upstream skill is **Lauren Tan**. Update this if you publish a fork.
+</ParamField>
+
+<ParamField path="repository" type="string">
+  The URL of the upstream repository: `https://github.com/poteto/how`. Update this to your fork's URL if you publish a customized version.
+</ParamField>
+
+<ParamField path="keywords" type="string[]">
+  Tags used for discoverability. The current keywords are `explanation`, `architecture`, `code-review`, `onboarding`, and `exploration`. Add keywords relevant to your customizations.
+</ParamField>
+
+<ParamField path="license" type="string">
+  The software license. The upstream skill is licensed under **MIT**.
+</ParamField>
+
+## Directory structure
+
+The full repository layout is:
+
+```text
+how/
+├── .cursor-plugin/
+│   └── plugin.json          # Cursor plugin metadata
+└── skills/
+    └── how/
+        ├── SKILL.md          # Top-level routing logic
+        └── references/
+            ├── explainer-prompt.md
+            ├── explorer-prompt.md
+            ├── critic-prompt.md
+            └── critique-rubric.md
+```
+
+### .cursor-plugin/
+
+The `.cursor-plugin/` directory is the Cursor-specific integration layer. It contains only `plugin.json` — Cursor reads this file to register the skill and make it available as `/how` in the chat interface. The actual skill logic lives in `skills/how/SKILL.md`, not here.
+
+### skills/how/
+
+This is where the skill's behavior lives:
+
+- **`SKILL.md`** — the entry point. Contains the routing logic, complexity assessment rules, step-by-step instructions for each mode, and references to the prompt templates. See [SKILL.md reference](/reference/skill-file) for full documentation.
+- **`references/`** — the four prompt templates that `SKILL.md` hands to subagents. See [Prompt templates](/reference/prompt-templates) for full documentation of each file.
+
+### .agents/ directory
+
+For codebases that use a generic agent runner (not Cursor), the skill can also be installed under `.agents/`:
+
+```text
+.agents/
+└── skills/
+    └── how/
+        ├── SKILL.md
+        └── references/
+            ├── explainer-prompt.md
+            ├── explorer-prompt.md
+            ├── critic-prompt.md
+            └── critique-rubric.md
+```
+
+The `.agents/` path contains identical content to `skills/how/`. No behavioral difference exists between the two — the duplication exists so you can install `how` in whichever location your runner expects without having to restructure the repository.
+
+<Note>
+  If you are adding `how` to an existing project, copy the `skills/how/` directory into your project's `.agents/skills/` path (or `skills/` path, depending on your runner). You do not need to include `.cursor-plugin/` unless you also want Cursor integration.
+</Note>
+
+## Forking and customizing
+
+To customize `how` for your own codebase:
+
+1. **Fork or copy the repository.** The skill is MIT licensed — you can copy the files into any project.
+
+2. **Update `plugin.json`.** Change `name` if you are renaming the skill, update `author` and `repository` to reflect your fork, and bump `version` when you ship meaningful changes.
+
+3. **Edit `SKILL.md`.** This is where most behavioral customizations live: the complexity threshold, the models used at each step, the number of exploration angles, and the mode-switching logic. See [SKILL.md reference](/reference/skill-file) for guidance.
+
+4. **Edit the prompt templates.** Customize how each subagent communicates, what output sections it produces, and what instructions it follows. See [Prompt templates](/reference/prompt-templates) for what each file controls.
+
+5. **Edit the critique rubric.** Add, remove, or reword lenses to match your team's architectural priorities. See [Critique rubric](/reference/critique-rubric) for the full lens documentation.
+
+<Tip>
+  Start by customizing `SKILL.md` and the prompt templates before changing `plugin.json`. The plugin metadata only affects discoverability and display — the templates and skill file are what change the skill's behavior.
+</Tip>
+
+---
+
+<CardGroup cols={2}>
+  <Card title="Skill file" icon="file-code" href="/reference/skill-file">
+    SKILL.md structure, frontmatter fields, and routing logic.
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Step-by-step instructions for installing how into your project.
+  </Card>
+</CardGroup>

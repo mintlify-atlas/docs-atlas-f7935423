@@ -1,0 +1,161 @@
+---
+title: 'Install the How skill in Cursor or an agent runner'
+description: 'Add the How skill to Cursor via the .cursor-plugin/ registration or to any compatible agent runner using the .agents/ directory convention.'
+keywords: ['install', 'setup', 'cursor', 'plugin', 'agent runner', 'clone']
+---
+
+How is distributed as a plain repository — no package manager, no build step. You clone it once and point your agent runner at the skill file. The setup takes under five minutes whether you are using Cursor or a generic agent runner.
+
+## Prerequisites
+
+- [Git](https://git-scm.com) installed
+- Cursor (for the Cursor path) or a compatible agent runner that supports skill files
+
+<Tabs>
+  <Tab title="Cursor">
+
+Install How into a Cursor project by cloning the repository into your workspace so Cursor can discover the `.cursor-plugin/` directory.
+
+<Steps>
+  <Step title="Clone the How repository">
+    Clone How into a location accessible to your Cursor project. A sibling directory to your project root works well, but anywhere Cursor can reach the plugin directory is fine.
+
+    ```bash
+    git clone https://github.com/poteto/how
+    ```
+  </Step>
+  <Step title="Verify the plugin file">
+    Confirm that the plugin registration file is present. This is what Cursor reads to register the skill.
+
+    ```bash
+    cat how/.cursor-plugin/plugin.json
+    ```
+
+    You should see the plugin metadata:
+
+    ```json
+    {
+      "name": "how",
+      "version": "0.1.0",
+      "description": "Explain how a subsystem works in your codebase by spawning parallel explorer agents, synthesizing their findings into a clear architectural explanation, and optionally running an architectural critique pass across multiple models.",
+      "author": {
+        "name": "Lauren Tan"
+      },
+      "repository": "https://github.com/poteto/how",
+      "keywords": ["explanation", "architecture", "code-review", "onboarding", "exploration"],
+      "license": "MIT"
+    }
+    ```
+  </Step>
+  <Step title="Open Cursor and confirm the skill is available">
+    Start a new Cursor agent session in your project. Type `/how` in the chat input. If Cursor has discovered the plugin, the `/how` command will appear in the slash command list.
+  </Step>
+  <Step title="Ask your first question">
+    Type `/how` followed by any architecture question and press Enter. How will assess the complexity of your question and begin exploring the codebase.
+
+    ```text
+    /how How does message virtualization work?
+    ```
+
+    See the [Quickstart](/quickstart) for more example prompts and a walkthrough of what happens next.
+  </Step>
+</Steps>
+
+<Note>
+  Cursor discovers plugins by scanning for `.cursor-plugin/plugin.json` files in directories it has access to. If the `/how` command does not appear, confirm that Cursor's workspace includes the directory where you cloned the repository.
+</Note>
+
+  </Tab>
+  <Tab title="Generic agent runner">
+
+For agent runners that support the `.agents/` directory convention, How exposes its skill file at `skills/how/SKILL.md`. Point your runner at the cloned repository.
+
+<Steps>
+  <Step title="Clone the How repository">
+    Clone the repository to a location your agent runner can access.
+
+    ```bash
+    git clone https://github.com/poteto/how
+    ```
+  </Step>
+  <Step title="Locate the skill file">
+    The top-level routing logic lives at `skills/how/SKILL.md`. The prompt templates referenced by the skill are in the `references/` subdirectory.
+
+    ```text
+    how/
+    ├── .cursor-plugin/
+    │   └── plugin.json
+    └── skills/
+        └── how/
+            ├── SKILL.md
+            └── references/
+                ├── explainer-prompt.md
+                ├── explorer-prompt.md
+                ├── critic-prompt.md
+                └── critique-rubric.md
+    ```
+  </Step>
+  <Step title="Register the skill with your runner">
+    Configure your agent runner to load `skills/how/SKILL.md` as a skill. The exact configuration depends on your runner — consult its documentation for how to register a skill file.
+  </Step>
+  <Step title="Invoke the skill">
+    Once registered, invoke the skill by asking any "how does X work?" question through your runner's interface. The skill handles routing automatically — you do not need to specify a mode.
+  </Step>
+</Steps>
+
+<Info>
+  The `.agents/` directory convention varies by runner. How's skill file at `skills/how/SKILL.md` contains all the routing and orchestration logic needed to run independently of Cursor.
+</Info>
+
+  </Tab>
+</Tabs>
+
+## Repository structure
+
+After cloning, the full repository layout is:
+
+```text
+how/
+├── .cursor-plugin/
+│   └── plugin.json          # Cursor plugin registration
+├── .agents/
+│   └── skills/
+│       └── how/
+│           ├── SKILL.md
+│           └── references/
+│               ├── explainer-prompt.md
+│               ├── explorer-prompt.md
+│               ├── critic-prompt.md
+│               └── critique-rubric.md
+└── skills/
+    └── how/
+        ├── SKILL.md          # Top-level routing logic
+        └── references/
+            ├── explainer-prompt.md   # Prompt for the synthesis agent
+            ├── explorer-prompt.md    # Prompt for explorer subagents
+            ├── critic-prompt.md      # Prompt for critique critics
+            └── critique-rubric.md    # Rubric used during critique pass
+```
+
+`SKILL.md` contains all the routing logic — simple vs. complex question detection, explain vs. critique mode selection, and subagent configuration. The `references/` folder holds the prompt templates that get passed to each subagent. See the [Skill file reference](/reference/skill-file) and [Prompt templates reference](/reference/prompt-templates) for details.
+
+## Keeping How up to date
+
+How is a plain Git repository, so updating it is a standard pull:
+
+```bash
+git -C how pull
+```
+
+No reinstallation or re-registration is needed. Cursor and agent runners read the files at runtime.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Run your first explanation with real example prompts
+  </Card>
+  <Card title="Concepts overview" icon="sitemap" href="/concepts/overview">
+    Understand how How routes questions and orchestrates agents
+  </Card>
+</CardGroup>
